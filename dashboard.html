@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FocusLens — Analytics Dashboard</title>
+<script src="chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #07070d;
+    --bg2: #0d0d17;
+    --surface: #11111e;
+    --surface2: #16162a;
+    --border: #1c1c30;
+    --border2: #252540;
+    --text: #e8e8f5;
+    --text2: #a0a0c0;
+    --muted: #5a5a80;
+    --productive: #00e5a0;
+    --productive-dim: rgba(0,229,160,0.1);
+    --unproductive: #ff4d6d;
+    --unproductive-dim: rgba(255,77,109,0.1);
+    --neutral: #ffd166;
+    --neutral-dim: rgba(255,209,102,0.1);
+    --accent: #7c3aed;
+    --accent2: #a78bfa;
+    --accent-dim: rgba(124,58,237,0.15);
+  }
+
+  html, body {
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Outfit', sans-serif;
+    font-weight: 400;
+  }
+
+  /* Background pattern */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 20% 20%, rgba(124,58,237,0.06) 0%, transparent 50%),
+                      radial-gradient(circle at 80% 80%, rgba(0,229,160,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 0 24px 60px;
+  }
+
+  /* ---- HEADER ---- */
+  .navbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, #7c3aed, #00e5a0);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 30px rgba(124,58,237,0.4);
+  }
+
+  .brand-name {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    background: linear-gradient(90deg, #e8e8f5 0%, #a78bfa 60%, #00e5a0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .brand-sub {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+  }
+
+  .nav-tab {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+    border: none;
+    background: none;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .nav-tab.active {
+    background: var(--accent-dim);
+    color: var(--accent2);
+    border: 1px solid rgba(167,139,250,0.2);
+  }
+
+  .nav-tab:hover:not(.active) { color: var(--text2); }
+
+  /* ---- SCORE HERO ---- */
+  .hero {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .score-card {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--surface2) 100%);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-card::before {
+    content: '';
+    position: absolute;
+    bottom: -40px; right: -40px;
+    width: 150px; height: 150px;
+    background: radial-gradient(circle, rgba(124,58,237,0.2) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .score-ring {
+    position: relative;
+    width: 160px; height: 160px;
+    margin-bottom: 20px;
+  }
+
+  .score-ring canvas { display: block; }
+
+  .score-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 42px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .score-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .score-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .score-subtitle {
+    font-size: 12px;
+    color: var(--text2);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .breakdown-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+  }
+
+  .breakdown-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 24px;
+  }
+
+  .breakdown-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .breakdown-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .breakdown-info { flex: 1; }
+
+  .breakdown-name {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .breakdown-bar-track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .breakdown-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  .breakdown-time {
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    min-width: 60px;
+    text-align: right;
+  }
+
+  /* ---- GRID ---- */
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 20px;
+  }
+
+  /* ---- CHART AREA ---- */
+  .chart-container {
+    position: relative;
+    height: 220px;
+  }
+
+  /* ---- TOP SITES TABLE ---- */
+  .sites-table { width: 100%; border-collapse: collapse; }
+
+  .sites-table th {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-weight: 400;
+    padding: 0 0 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sites-table th:last-child, .sites-table td:last-child { text-align: right; }
+
+  .sites-table tr:hover td { background: var(--surface2); }
+
+  .sites-table td {
+    padding: 11px 8px 11px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+
+  .domain-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .domain-favicon {
+    width: 20px; height: 20px;
+    border-radius: 4px;
+    background: var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+
+  .cat-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .cat-productive { background: var(--productive-dim); color: var(--productive); }
+  .cat-unproductive { background: var(--unproductive-dim); color: var(--unproductive); }
+  .cat-neutral { background: var(--neutral-dim); color: var(--neutral); }
+
+  .time-cell {
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  /* ---- WEEKLY REPORT ---- */
+  .report-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .day-col { text-align: center; }
+
+  .day-name {
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .day-bar-wrap {
+    height: 80px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .day-bar {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    min-height: 4px;
+    transition: height 0.8s ease;
+    position: relative;
+  }
+
+  .day-score {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text2);
+  }
+
+  /* ---- SETTINGS ---- */
+  .settings-section {
+    margin-bottom: 32px;
+  }
+
+  .settings-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+
+  .domain-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .domain-edit-name {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .cat-select {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .cat-select:focus { border-color: var(--accent2); }
+
+  .add-domain-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .input-field {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .input-field:focus { border-color: var(--accent2); }
+  .input-field::placeholder { color: var(--muted); }
+
+  .btn-add {
+    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-add:hover { opacity: 0.85; }
+
+  .btn-danger {
+    background: rgba(255,77,109,0.1);
+    color: var(--unproductive);
+    border: 1px solid rgba(255,77,109,0.2);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-family: 'Outfit', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-danger:hover { background: rgba(255,77,109,0.2); }
+
+  /* ---- PAGE SECTIONS ---- */
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  /* ---- STAT MINI ---- */
+  .mini-stat {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .mini-stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .mini-stat-label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+  }
+
+  .mini-stat-sub {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 8px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ---- WEEK SELECTOR ---- */
+  .view-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+
+  .view-btn {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    background: transparent;
+    font-family: 'Outfit', sans-serif;
+  }
+
+  .view-btn.active {
+    background: var(--accent-dim);
+    color: var(--accent2);
+    border-color: rgba(167,139,250,0.3);
+  }
+
+  .view-btn:hover:not(.active) { color: var(--text2); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card { animation: fadeIn 0.4s ease both; }
+
+  /* Stagger */
+  .hero > *:nth-child(2) { animation-delay: 0.05s; }
+  .grid-2 > *:nth-child(2) { animation-delay: 0.08s; }
+  .grid-3 > *:nth-child(2) { animation-delay: 0.05s; }
+  .grid-3 > *:nth-child(3) { animation-delay: 0.1s; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="brand">
+      <div class="brand-icon">🔍</div>
+      <div>
+        <div class="brand-name">FocusLens</div>
+        <div class="brand-sub">// productivity analytics</div>
+      </div>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-page="today">Today</button>
+      <button class="nav-tab" data-page="weekly">Weekly</button>
+      <button class="nav-tab" data-page="sites">All Sites</button>
+      <button class="nav-tab" data-page="settings">Settings</button>
+    </div>
+  </nav>
+
+  <!-- TODAY PAGE -->
+  <section class="page-section active" id="page-today">
+
+    <div class="hero">
+      <!-- Score -->
+      <div class="score-card card">
+        <div class="score-ring">
+          <canvas id="scoreDonut" width="160" height="160"></canvas>
+          <div class="score-center">
+            <div class="score-number" id="heroScore">—</div>
+            <div class="score-label">Score</div>
+          </div>
+        </div>
+        <div class="score-title" id="heroGrade">Start Browsing</div>
+        <div class="score-subtitle" id="heroDate"></div>
+      </div>
+
+      <!-- Breakdown -->
+      <div class="breakdown-card card">
+        <div class="breakdown-title">Time Breakdown</div>
+        <div class="breakdown-row">
+          <div class="breakdown-icon" style="background:var(--productive-dim)">✅</div>
+          <div class="breakdown-info">
+            <div class="breakdown-name" style="color:var(--productive)">Productive</div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" id="breakProd" style="background:var(--productive);width:0%"></div>
+            </div>
+          </div>
+          <div class="breakdown-time" id="timeProd" style="color:var(--productive)">0m</div>
+        </div>
+        <div class="breakdown-row">
+          <div class="breakdown-icon" style="background:var(--neutral-dim)">⚪</div>
+          <div class="breakdown-info">
+            <div class="breakdown-name" style="color:var(--neutral)">Neutral</div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" id="breakNeutral" style="background:var(--neutral);width:0%"></div>
+            </div>
+          </div>
+          <div class="breakdown-time" id="timeNeutral" style="color:var(--neutral)">0m</div>
+        </div>
+        <div class="breakdown-row">
+          <div class="breakdown-icon" style="background:var(--unproductive-dim)">🚫</div>
+          <div class="breakdown-info">
+            <div class="breakdown-name" style="color:var(--unproductive)">Unproductive</div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" id="breakUnprod" style="background:var(--unproductive);width:0%"></div>
+            </div>
+          </div>
+          <div class="breakdown-time" id="timeUnprod" style="color:var(--unproductive)">0m</div>
+        </div>
+        <div class="breakdown-row" style="margin-bottom:0">
+          <div class="breakdown-icon" style="background:var(--accent-dim)">⏱️</div>
+          <div class="breakdown-info">
+            <div class="breakdown-name" style="color:var(--accent2)">Total Browsing</div>
+            <div class="breakdown-bar-track">
+              <div class="breakdown-bar-fill" style="background:var(--accent2);width:100%"></div>
+            </div>
+          </div>
+          <div class="breakdown-time" id="timeTotal" style="color:var(--accent2)">0m</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <!-- Hourly Chart -->
+      <div class="card">
+        <div class="card-title">Hourly Activity</div>
+        <div class="chart-container">
+          <canvas id="hourlyChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Category Pie -->
+      <div class="card">
+        <div class="card-title">Category Distribution</div>
+        <div class="chart-container">
+          <canvas id="categoryPie"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Sites -->
+    <div class="card">
+      <div class="card-title">Today's Sites</div>
+      <table class="sites-table">
+        <thead>
+          <tr>
+            <th>Domain</th>
+            <th>Category</th>
+            <th>Time Spent</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody id="todaySitesBody"></tbody>
+      </table>
+      <div id="todayEmpty" class="empty-state" style="display:none;padding:30px;text-align:center;color:var(--muted);font-family:Space Mono,monospace;font-size:12px;">No data yet. Start browsing and data will appear here.</div>
+    </div>
+
+  </section>
+
+  <!-- WEEKLY PAGE -->
+  <section class="page-section" id="page-weekly">
+
+    <div class="grid-3" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-title">Week Score</div>
+        <div class="mini-stat">
+          <div class="mini-stat-value" id="weekScore" style="color:var(--accent2)">—</div>
+          <div class="mini-stat-label">Productivity %</div>
+          <div class="mini-stat-sub" id="weekScoreLabel">Calculating...</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Productive Hours</div>
+        <div class="mini-stat">
+          <div class="mini-stat-value" id="weekProdHours" style="color:var(--productive)">0h</div>
+          <div class="mini-stat-label">This Week</div>
+          <div class="mini-stat-sub" id="weekProdDomains">0 domains</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Time Lost</div>
+        <div class="mini-stat">
+          <div class="mini-stat-value" id="weekUnprodHours" style="color:var(--unproductive)">0h</div>
+          <div class="mini-stat-label">Unproductive</div>
+          <div class="mini-stat-sub" id="weekUnprodDomains">0 domains</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily bars -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">Daily Breakdown (This Week)</div>
+      <div class="report-grid" id="weeklyDayGrid"></div>
+      <div style="display:flex;gap:20px;margin-top:8px">
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--productive);display:inline-block"></span> Productive
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--unproductive);display:inline-block"></span> Unproductive
+        </span>
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+          <span style="width:10px;height:10px;border-radius:2px;background:var(--neutral);display:inline-block"></span> Neutral
+        </span>
+      </div>
+    </div>
+
+    <!-- Weekly trend chart -->
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">Weekly Productivity Trend</div>
+      <div class="chart-container" style="height:260px">
+        <canvas id="weeklyTrendChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Top sites this week -->
+    <div class="card">
+      <div class="card-title">Top Sites This Week</div>
+      <table class="sites-table">
+        <thead>
+          <tr><th>Domain</th><th>Category</th><th>Time Spent</th><th>Days Active</th></tr>
+        </thead>
+        <tbody id="weeklySitesBody"></tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ALL SITES PAGE -->
+  <section class="page-section" id="page-sites">
+    <div class="card">
+      <div class="card-title">All Tracked Domains</div>
+      <div class="add-domain-row" style="margin-bottom:20px">
+        <input type="text" class="input-field" id="newDomainInput" placeholder="example.com">
+        <select class="cat-select" id="newDomainCat">
+          <option value="productive">Productive</option>
+          <option value="neutral" selected>Neutral</option>
+          <option value="unproductive">Unproductive</option>
+        </select>
+        <button class="btn-add" id="addDomainBtn">+ Add Rule</button>
+      </div>
+      <table class="sites-table">
+        <thead>
+          <tr><th>Domain</th><th>Category</th><th>Total Time</th><th>Override</th></tr>
+        </thead>
+        <tbody id="allSitesBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SETTINGS PAGE -->
+  <section class="page-section" id="page-settings">
+    <div class="card">
+      <div class="settings-section">
+        <div class="settings-title">Data Management</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6">
+          All data is stored locally in your browser. No data is sent to any external server.
+          FocusLens tracks tab activity and classifies websites to help you understand your browsing habits.
+        </p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="btn-add" id="exportBtn">⬇ Export Data (JSON)</button>
+          <button class="btn-danger" id="clearTodayBtn">Clear Today's Data</button>
+          <button class="btn-danger" id="clearAllBtn">Clear All Data</button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="margin-top:32px">
+        <div class="settings-title">Productivity Domains</div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px">Built-in classifications. Add custom overrides in the "All Sites" tab.</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--productive);font-family:Space Mono,monospace;margin-bottom:12px">✅ Productive</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8;font-family:Space Mono,monospace" id="prodDomainList"></div>
+          </div>
+          <div>
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--unproductive);font-family:Space Mono,monospace;margin-bottom:12px">🚫 Unproductive</div>
+            <div style="font-size:12px;color:var(--text2);line-height:1.8;font-family:Space Mono,monospace" id="unprodDomainList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>
